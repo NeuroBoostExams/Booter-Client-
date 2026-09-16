@@ -67,7 +67,7 @@ public final class WaypointScreen extends Screen {
     private static final int SIDEBAR_W = 96;
 
     /** Sidebar sections. Add more here as new modules are introduced. */
-    private static final String[] SECTIONS = {"Route Walker", "Mushroom Macro", "Pathfinder", "Mushroom Farmer", "Block Miner", "Auto Fisher", "Fish Hunter", "Turtle Hunter", "Combat", "Coal Miner", "Auto Farmer", "Azalea Farmer", "Path Debug", "Dev Mode", "Movement Recorder"};
+    private static final String[] SECTIONS = {"Route Walker", "Mushroom Macro", "Pathfinder", "Mushroom Farmer", "Block Miner", "Auto Fisher", "Fish Hunter", "Turtle Hunter", "Combat", "Coal Miner", "Auto Farmer", "Azalea Farmer", "Zealot Eman Farmer", "Path Debug", "Dev Mode", "Movement Recorder"};
 
     /** Cycleable presets for the debug path-line colour (ARGB). */
     private static final int[] DEBUG_LINE_COLORS = {0xFF40C4FF, 0xFF2CFF6A, 0xFFFFE34D, 0xFFFF5BAA, 0xFFB76BFF, 0xFFFFFFFF};
@@ -190,10 +190,12 @@ public final class WaypointScreen extends Screen {
         } else if (selectedSection == 11) {
             buildAzaleaFarmerSection();
         } else if (selectedSection == 12) {
-            buildPathDebugSection();
+            buildZealotEmanSection();
         } else if (selectedSection == 13) {
-            buildDevModeSection();
+            buildPathDebugSection();
         } else if (selectedSection == 14) {
+            buildDevModeSection();
+        } else if (selectedSection == 15) {
             buildMovementRecorderSection();
         }
         applyContentScroll();
@@ -613,6 +615,20 @@ public final class WaypointScreen extends Screen {
         }));
     }
 
+    private void buildZealotEmanSection() {
+        int pad = 6;
+        int innerX = contentX + pad;
+        int controlsW = contentW - pad * 2;
+        int halfW = (controlsW - 3) / 2;
+        nameField = null;
+
+        int y = panelY + 16 + 64;
+        widgets.add(new Button(innerX, y, halfW, 16, () -> "Start", false,
+                () -> BooterClient.zealotEmanFarmer().start(mc())));
+        widgets.add(new Button(innerX + halfW + 3, y, halfW, 16, () -> "Stop", true,
+                () -> BooterClient.zealotEmanFarmer().stop(mc())));
+    }
+
     private void buildDevModeSection() {
         int pad = 6;
         int innerX = contentX + pad;
@@ -969,10 +985,12 @@ public final class WaypointScreen extends Screen {
         } else if (selectedSection == 11) {
             renderAzaleaFarmer(g, mouseX, mouseY);
         } else if (selectedSection == 12) {
-            renderPathDebug(g, mouseX, mouseY);
+            renderZealotEman(g, mouseX, mouseY);
         } else if (selectedSection == 13) {
-            renderDevMode(g, mouseX, mouseY);
+            renderPathDebug(g, mouseX, mouseY);
         } else if (selectedSection == 14) {
+            renderDevMode(g, mouseX, mouseY);
+        } else if (selectedSection == 15) {
             renderMovementRecorder(g, mouseX, mouseY);
         }
     }
@@ -1386,6 +1404,27 @@ public final class WaypointScreen extends Screen {
         renderWidgetsScrolled(g, mouseX, mouseY);
     }
 
+    private void renderZealotEman(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+        Font font = font();
+        var farmer = BooterClient.zealotEmanFarmer();
+        String status = switch (farmer.getState()) {
+            case IDLE -> "Idle";
+            case SCANNING -> "Scanning for eligible endermen";
+            case PATHING -> "Pathing to enderman";
+            case ATTACKING -> "Attacking enderman";
+        };
+        int statusColor = farmer.getState() == com.booter.client.zealot.ZealotEmanFarmerModule.State.IDLE ? COL_DIM : COL_ACTIVE;
+        g.text(font, "Status: " + status, contentX + 6, panelY + 20, statusColor, false);
+        var target = farmer.getTarget();
+        String t = target == null ? "(none)" : String.format(Locale.ROOT, "%.1f %.1f %.1f", target.getX(), target.getY(), target.getZ());
+        g.text(font, "Target: " + t + " · hardcoded nodes " + farmer.nodeCount(), contentX + 6, panelY + 32, COL_TEXT, false);
+        var node = farmer.getTargetNode();
+        String n = node == null ? "(none)" : node.name + " " + node.x + " " + node.y + " " + node.z;
+        g.text(font, "Nearest node: " + n, contentX + 6, panelY + 44, COL_DIM, false);
+        g.text(font, "Only attacks endermen within 4.5 blocks of a node.", contentX + 6, panelY + 56, COL_DIM, false);
+        renderWidgetsScrolled(g, mouseX, mouseY);
+    }
+
     private void renderDevMode(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         Font font = font();
         g.text(font, "Capture waypoints for hardcoded movement routes.", contentX + 6, panelY + 20, COL_TEXT, false);
@@ -1752,8 +1791,8 @@ public final class WaypointScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        // Interactive waypoint list (Route Walker / Mushroom Macro) has its own scroll.
-        if ((selectedSection == 0 || selectedSection == 1 || selectedSection == 13)
+        // Interactive waypoint list (Route Walker / Mushroom Macro / Dev Mode) has its own scroll.
+        if ((selectedSection == 0 || selectedSection == 1 || selectedSection == 14)
                 && mouseX >= listX && mouseX < listX + listW && mouseY >= listY && mouseY < listY + listH) {
             listScroll -= verticalAmount * LIST_ROW_H * 2;
             clampScroll();

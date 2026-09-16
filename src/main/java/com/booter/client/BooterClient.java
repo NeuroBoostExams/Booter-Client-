@@ -20,6 +20,7 @@ import com.booter.client.render.RouteRenderer;
 import com.booter.client.rotation.RotationManager;
 import com.booter.client.turtlehunter.TurtleHunterModule;
 import com.booter.client.waypoint.WaypointManager;
+import com.booter.client.zealot.ZealotEmanFarmerModule;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -59,6 +60,7 @@ public final class BooterClient implements ClientModInitializer {
     private FloweringAzaleaFarmerModule azaleaFarmer;
     private CoalMinerModule coalMiner;
     private AutoFarmerModule autoFarmer;
+    private ZealotEmanFarmerModule zealotEmanFarmer;
     private RouteRenderer renderer;
     private PathDebugRenderer pathDebugRenderer;
     private KeybindManager keybinds;
@@ -89,6 +91,7 @@ public final class BooterClient implements ClientModInitializer {
         azaleaFarmer = new FloweringAzaleaFarmerModule(config, movement, rotation);
         coalMiner = new CoalMinerModule(config, movement, rotation);
         autoFarmer = new AutoFarmerModule(config, movement, rotation);
+        zealotEmanFarmer = new ZealotEmanFarmerModule(config, movement, rotation);
         renderer = new RouteRenderer(config, waypoints, walker);
         pathDebugRenderer = new PathDebugRenderer();
         keybinds = new KeybindManager();
@@ -107,6 +110,7 @@ public final class BooterClient implements ClientModInitializer {
             azaleaFarmer.tick(client);
             coalMiner.tick(client);
             autoFarmer.tick(client);
+            zealotEmanFarmer.tick(client);
         });
         // Rotations advance every rendered frame for maximum smoothness (modules set
         // their target in the tick above; this eases the view toward it). The step is
@@ -184,6 +188,10 @@ public final class BooterClient implements ClientModInitializer {
 
     public static AutoFarmerModule autoFarmer() {
         return instance.autoFarmer;
+    }
+
+    public static ZealotEmanFarmerModule zealotEmanFarmer() {
+        return instance.zealotEmanFarmer;
     }
 
     /** Sends a prefixed chat message to the local player only. */

@@ -15,6 +15,7 @@ import com.booter.client.pathfinder.PathfinderModule;
 import com.booter.client.turtlehunter.TurtleHunterModule;
 import com.booter.client.waypoint.Waypoint;
 import com.booter.client.waypoint.WaypointManager;
+import com.booter.client.zealot.ZealotEmanFarmerModule;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -85,6 +86,8 @@ public final class RouteRenderer {
     private static final int COLOR_COMBAT = 0xFFFF4D4D;
     // Flowering Azalea Farmer target — pink.
     private static final int COLOR_AZALEA = 0xFFFF77C8;
+    // Zealot Eman Farmer target — purple.
+    private static final int COLOR_ZEALOT = 0xFFB76BFF;
     private static final int COLOR_NAV_EDGE = 0x883FB950;
     private static final int COLOR_NAV_WAYPOINT = 0xCC3FB950;
     private static final int COLOR_NAV_INVALID = 0xAAFF4D4D;
@@ -122,8 +125,10 @@ public final class RouteRenderer {
         boolean hasCombat = combat.getState() != CombatModule.State.IDLE;
         FloweringAzaleaFarmerModule azalea = BooterClient.azaleaFarmer();
         boolean hasAzalea = azalea.getState() != FloweringAzaleaFarmerModule.State.IDLE;
+        ZealotEmanFarmerModule zealot = BooterClient.zealotEmanFarmer();
+        boolean hasZealot = zealot.getState() != ZealotEmanFarmerModule.State.IDLE;
         boolean hasNavigationDebug = config.settings.hierarchyDebug && BooterClient.navigation() != null && BooterClient.navigation().hasGraph();
-        if (!hasWaypoints && !hasPath && !hasFarmer && !hasMiner && !hasCoal && !hasFishHunter && !hasTurtleHunter && !hasCombat && !hasAzalea && !hasNavigationDebug) {
+        if (!hasWaypoints && !hasPath && !hasFarmer && !hasMiner && !hasCoal && !hasFishHunter && !hasTurtleHunter && !hasCombat && !hasAzalea && !hasZealot && !hasNavigationDebug) {
             return;
         }
 
@@ -277,6 +282,15 @@ public final class RouteRenderer {
                         azalea.getPath(), azalea.getPathIndex());
             }
             targetBox(pose, lines, camPos, camera.forwardVector(), azalea.getTarget(), COLOR_AZALEA);
+        }
+
+        // Zealot Eman Farmer — green approach path plus a purple enderman target.
+        if (hasZealot) {
+            if (zealot.getState() == ZealotEmanFarmerModule.State.PATHING && zealot.getPath().size() > 1) {
+                renderNodePath(pose, lines, camPos, camera.forwardVector(),
+                        zealot.getPath(), zealot.getPathIndex());
+            }
+            entityBox(pose, lines, camPos, camera.forwardVector(), zealot.getTarget(), COLOR_ZEALOT);
         }
 
         matrices.popPose();
