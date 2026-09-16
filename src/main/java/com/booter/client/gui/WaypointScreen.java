@@ -352,6 +352,7 @@ public final class WaypointScreen extends Screen {
         int pad = 6;
         int innerX = contentX + pad;
         int controlsW = (contentW - pad * 3) * 56 / 100;
+        int halfW = (controlsW - 3) / 2;
 
         // Path node list on the right.
         listX = innerX + controlsW + pad;
