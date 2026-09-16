@@ -77,9 +77,27 @@ public final class MovementRecorder {
         BooterClient.chat("Cleared " + count + " recorded movement node(s).");
     }
 
+    public int addWalkNode(Minecraft client) {
+        LocalPlayer player = client.player;
+        if (player == null) {
+            return -1;
+        }
+        if (!player.onGround()) {
+            BooterClient.chat("Movement recorder: walk nodes can only be added on ground.");
+            return -1;
+        }
+        addNode(player, RecordedMovementNode.Type.WALK);
+        BooterClient.chat("Added movement node #" + nodes.size() + ".");
+        return nodes.size();
+    }
+
     public int addEndNode(Minecraft client) {
         LocalPlayer player = client.player;
         if (player == null) {
+            return -1;
+        }
+        if (!player.onGround()) {
+            BooterClient.chat("Movement recorder: END nodes can only be added on ground.");
             return -1;
         }
         addNode(player, RecordedMovementNode.Type.END);

@@ -12,6 +12,7 @@ import com.booter.client.mushroom.MushroomFarmerModule;
 import com.booter.client.navigation.NavigationEdge;
 import com.booter.client.navigation.NavigationWaypoint;
 import com.booter.client.pathfinder.PathfinderModule;
+import com.booter.client.recorder.RecordedMovementNode;
 import com.booter.client.turtlehunter.TurtleHunterModule;
 import com.booter.client.waypoint.Waypoint;
 import com.booter.client.waypoint.WaypointManager;
@@ -91,6 +92,9 @@ public final class RouteRenderer {
     private static final int COLOR_NAV_EDGE = 0x883FB950;
     private static final int COLOR_NAV_WAYPOINT = 0xCC3FB950;
     private static final int COLOR_NAV_INVALID = 0xAAFF4D4D;
+    private static final int COLOR_REC_LINE = 0xCC40C4FF;
+    private static final int COLOR_REC_NODE = 0xDD40C4FF;
+    private static final int COLOR_REC_END = 0xFFFF5BAA;
 
     private final ConfigManager config;
     private final WaypointManager waypoints;
@@ -127,8 +131,9 @@ public final class RouteRenderer {
         boolean hasAzalea = azalea.getState() != FloweringAzaleaFarmerModule.State.IDLE;
         ZealotEmanFarmerModule zealot = BooterClient.zealotEmanFarmer();
         boolean hasZealot = zealot.getState() != ZealotEmanFarmerModule.State.IDLE;
+        boolean hasRecorderNodes = !BooterClient.movementRecorder().view().isEmpty();
         boolean hasNavigationDebug = config.settings.hierarchyDebug && BooterClient.navigation() != null && BooterClient.navigation().hasGraph();
-        if (!hasWaypoints && !hasPath && !hasFarmer && !hasMiner && !hasCoal && !hasFishHunter && !hasTurtleHunter && !hasCombat && !hasAzalea && !hasZealot && !hasNavigationDebug) {
+        if (!hasWaypoints && !hasPath && !hasFarmer && !hasMiner && !hasCoal && !hasFishHunter && !hasTurtleHunter && !hasCombat && !hasAzalea && !hasZealot && !hasRecorderNodes && !hasNavigationDebug) {
             return;
         }
 
@@ -200,6 +205,10 @@ public final class RouteRenderer {
 
         if (hasNavigationDebug) {
             renderNavigationGraph(pose, lines, camPos, camera.forwardVector());
+        }
+
+        if (hasRecorderNodes) {
+            renderRecordedMovement(pose, lines, camPos, camera.forwardVector());
         }
 
         // Waypoint Walker's A* path between waypoints — the strict line it follows.
@@ -328,6 +337,33 @@ public final class RouteRenderer {
     }
 
     private static final double NEAR_EPS = 0.1;
+
+    private static void renderRecordedMovement(PoseStack.Pose pose, VertexConsumer lines, Vec3 camPos, Vector3fc forward) {
+        List<RecordedMovementNode> nodes = BooterClient.movementRecorder().view();
+        for (int i = 0; i + 1 < nodes.size(); i++) {
+            RecordedMovementNode a = nodes.get(i);
+            RecordedMovementNode b = nodes.get(i + 1);
+            lineClipped(pose, lines, camPos, forward,
+                    a.x, a.y + 0.12, a.z,
+                    b.x, b.y + 0.12, b.z,
+                    COLOR_REC_LINE);
+        }
+        for (RecordedMovementNode node : nodes) {
+            double dx = node.x - camPos.x;
+            double dy = (node.y + 0.5) - camPos.y;
+            double dz = node.z - camPos.z;
+            if (dx * dx + dy * dy + dz * dz > DETAIL_CULL_SQ || !inFront(node.x, node.y + 0.5, node.z, camPos, forward)) {
+                continue;
+            }
+            boolean end = node.type == RecordedMovementNode.Type.END;
+            double half = end ? 0.42 : 0.28;
+            double height = end ? 0.9 : 0.48;
+            solidBox(pose, lines,
+                    node.x - half, node.y + 0.04, node.z - half,
+                    node.x + half, node.y + 0.04 + height, node.z + half,
+                    end ? COLOR_REC_END : COLOR_REC_NODE);
+        }
+    }
 
     private static void renderNavigationGraph(PoseStack.Pose pose, VertexConsumer lines, Vec3 camPos, Vector3fc forward) {
         var navigation = BooterClient.navigation();

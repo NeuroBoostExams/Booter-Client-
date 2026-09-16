@@ -34,6 +34,9 @@ public final class KeybindManager {
     private final KeyMapping toggleAzaleaFarmer;
     private final KeyMapping toggleCoalMiner;
     private final KeyMapping toggleAutoFarmer;
+    private final KeyMapping addRecordedNode;
+    private final KeyMapping addRecordedEndNode;
+    private final KeyMapping toggleZealotEmanFarmer;
     private final KeyMapping swapToHub;
     private final KeyMapping swapToGalatea;
     private final KeyMapping togglePathDebug;
@@ -56,6 +59,9 @@ public final class KeybindManager {
         toggleAzaleaFarmer = register("toggle_azalea_farmer", GLFW.GLFW_KEY_UNKNOWN);
         toggleCoalMiner = register("toggle_coal_miner", GLFW.GLFW_KEY_C);
         toggleAutoFarmer = register("toggle_auto_farmer", GLFW.GLFW_KEY_Y);
+        addRecordedNode = register("add_recorded_node", GLFW.GLFW_KEY_UNKNOWN);
+        addRecordedEndNode = register("add_recorded_end_node", GLFW.GLFW_KEY_UNKNOWN);
+        toggleZealotEmanFarmer = register("toggle_zealot_eman_farmer", GLFW.GLFW_KEY_UNKNOWN);
         swapToHub = register("swap_to_hub", GLFW.GLFW_KEY_LEFT_BRACKET);
         swapToGalatea = register("swap_to_galatea", GLFW.GLFW_KEY_RIGHT_BRACKET);
         togglePathDebug = register("toggle_path_debug", GLFW.GLFW_KEY_B);
@@ -116,6 +122,15 @@ public final class KeybindManager {
         }
         while (toggleAutoFarmer.consumeClick()) {
             BooterClient.autoFarmer().toggle(client);
+        }
+        while (addRecordedNode.consumeClick()) {
+            BooterClient.movementRecorder().addWalkNode(client);
+        }
+        while (addRecordedEndNode.consumeClick()) {
+            BooterClient.movementRecorder().addEndNode(client);
+        }
+        while (toggleZealotEmanFarmer.consumeClick()) {
+            BooterClient.zealotEmanFarmer().toggle(client);
         }
         while (swapToHub.consumeClick()) {
             BooterClient.runCommand(client, "hub");
