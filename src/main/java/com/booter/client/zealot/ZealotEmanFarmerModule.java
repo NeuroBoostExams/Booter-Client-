@@ -43,12 +43,14 @@ public final class ZealotEmanFarmerModule {
     private static final int PATH_MAX_NODES = 4000;
     private static final int PATH_MAX_RADIUS = 96;
     private static final double SCAN_RADIUS = 48.0;
-    private static final double ATTACK_RANGE = 4.0;
+    private static final double ATTACK_RANGE = 4.5;
     private static final double NODE_ELIGIBILITY_RADIUS = 4.5;
     private static final double VISIBLE_NODE_LOOKAHEAD = 5.0;
     private static final double MOB_AIM_LOS_RANGE = 5.0;
     private static final double APPROACH_DISTANCE = 2.2;
     private static final double PATH_GOAL_REACHED = 1.65;
+    private static final double CLOSE_DIRECT_RANGE = 5.0;
+    private static final double STOP_FORWARD_RANGE = 3.15;
 
     private final ConfigManager config;
     private final MovementController movement;
@@ -190,12 +192,8 @@ public final class ZealotEmanFarmerModule {
             return;
         }
 
-        if (canAttack(player, target)) {
-            attackTarget(client, player);
-            return;
-        }
-        if (canLookAtMob(player, target)) {
-            chaseVisibleTarget(client, player);
+        if (isCloseToTarget(player, target)) {
+            handleCloseTarget(client, player);
             return;
         }
 
@@ -259,7 +257,7 @@ public final class ZealotEmanFarmerModule {
             }
         }
         if (player.blockPosition().distSqr(goal) <= PATH_GOAL_REACHED * PATH_GOAL_REACHED) {
-            chaseVisibleTarget(client, player);
+            handleCloseTarget(client, player);
             return;
         }
         if (target.getId() == lastPathTargetId && goal.equals(lastPathGoal) && follower.isFollowing()) {
@@ -286,26 +284,30 @@ public final class ZealotEmanFarmerModule {
 
     private void attackTarget(Minecraft client, LocalPlayer player) {
         follower.clear();
+        lastPathGoal = null;
+        lastPathTargetId = -1;
         state = State.ATTACKING;
-        double dx = target.getX() - player.getX();
-        double dz = target.getZ() - player.getZ();
-        double horiz = Math.sqrt(dx * dx + dz * dz);
-        movement.tick(client, horiz > 2.1, false, false, false, true);
         aimAtTarget(player);
+        movement.tick(client, false, false, false, false, true);
         movement.setUse(client, false);
         movement.setAttack(client, true);
     }
 
-    private void chaseVisibleTarget(Minecraft client, LocalPlayer player) {
+    private void handleCloseTarget(Minecraft client, LocalPlayer player) {
         follower.clear();
         lastPathGoal = null;
         lastPathTargetId = -1;
-        state = State.PATHING;
+        if (canAttack(player, target)) {
+            attackTarget(client, player);
+            return;
+        }
+        state = State.ATTACKING;
         double dx = target.getX() - player.getX();
         double dz = target.getZ() - player.getZ();
         double horiz = Math.sqrt(dx * dx + dz * dz);
         aimAtTarget(player);
-        movement.tick(client, horiz > 2.15, false, false, false, true);
+        boolean forward = horiz > STOP_FORWARD_RANGE;
+        movement.tick(client, forward, false, false, false, true);
         movement.setAttack(client, false);
         movement.setUse(client, false);
     }
@@ -382,13 +384,23 @@ public final class ZealotEmanFarmerModule {
     }
 
     private static boolean canAttack(LocalPlayer player, Entity entity) {
-        return entity != null && player.distanceToSqr(entity) <= ATTACK_RANGE * ATTACK_RANGE && player.hasLineOfSight(entity);
+        return entity != null && horizontalDistanceSqr(player, entity) <= ATTACK_RANGE * ATTACK_RANGE && player.hasLineOfSight(entity);
     }
 
     private static boolean canLookAtMob(LocalPlayer player, Entity entity) {
         return entity != null
-                && player.distanceToSqr(entity) <= MOB_AIM_LOS_RANGE * MOB_AIM_LOS_RANGE
+                && horizontalDistanceSqr(player, entity) <= MOB_AIM_LOS_RANGE * MOB_AIM_LOS_RANGE
                 && player.hasLineOfSight(entity);
+    }
+
+    private static boolean isCloseToTarget(LocalPlayer player, Entity entity) {
+        return entity != null && horizontalDistanceSqr(player, entity) <= CLOSE_DIRECT_RANGE * CLOSE_DIRECT_RANGE;
+    }
+
+    private static double horizontalDistanceSqr(LocalPlayer player, Entity entity) {
+        double dx = player.getX() - entity.getX();
+        double dz = player.getZ() - entity.getZ();
+        return dx * dx + dz * dz;
     }
 
     private BlockPos visibleNodeLookahead(Minecraft client, LocalPlayer player, Entity mob) {
