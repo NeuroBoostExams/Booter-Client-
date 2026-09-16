@@ -174,6 +174,78 @@ public final class PathFollower {
         return Status.FOLLOWING;
     }
 
+    /**
+     * Strict node follower for routes that must not weave around path nodes. It
+     * aims at the next node center directly, rotates in place until aligned, and
+     * advances only after actually reaching/passing that node.
+     */
+    public Status tickStrict(Minecraft client, boolean crouch, boolean attack) {
+        LocalPlayer player = client.player;
+        if (player == null || client.level == null || path.isEmpty()) {
+            return Status.IDLE;
+        }
+        int n = path.size();
+        if (n < 2) {
+            return Status.ARRIVED;
+        }
+
+        double px = player.getX();
+        double pz = player.getZ();
+        BlockPos fin = path.get(n - 1);
+        double fdx = fin.getX() + 0.5 - px;
+        double fdz = fin.getZ() + 0.5 - pz;
+        if (fdx * fdx + fdz * fdz <= 0.9 * 0.9 && reachedYLoose(fin, player)) {
+            return Status.ARRIVED;
+        }
+
+        while (segIndex < n - 2
+                && (reachedStrict(path.get(segIndex + 1), player)
+                || passedNode(path.get(segIndex), path.get(segIndex + 1), player))) {
+            segIndex++;
+        }
+
+        BlockPos next = path.get(Math.min(segIndex + 1, n - 1));
+        double nx = next.getX() + 0.5;
+        double ny = next.getY() + 1.62;
+        double nz = next.getZ() + 0.5;
+        double dx = nx - px;
+        double dz = nz - pz;
+        double horiz = Math.sqrt(dx * dx + dz * dz);
+        if (segIndex >= n - 2 && horiz <= 0.9 && reachedYLoose(next, player)) {
+            return Status.ARRIVED;
+        }
+
+        float targetYaw = horiz < 0.15 ? lastYaw : (float) Math.toDegrees(Math.atan2(-dx, dz));
+        lastYaw = targetYaw;
+        double dyEye = ny - player.getEyeY();
+        float targetPitch = (float) Mth.clamp(-Math.toDegrees(Math.atan2(dyEye, Math.max(0.5, horiz))), 0.0, 10.0);
+        rotation.setTargetRotation(targetYaw, targetPitch);
+        rotation.setActive(true);
+
+        double yawError = Math.abs(Mth.wrapDegrees((double) targetYaw - player.getYRot()));
+        boolean forward = yawError < 22.0 && horiz > 0.75;
+        movement.tick(client, forward, false, crouch, attack, true);
+
+        if (havePos && forward) {
+            double moved = (px - lastPosX) * (px - lastPosX) + (pz - lastPosZ) * (pz - lastPosZ);
+            if (moved < STUCK_MOVE_EPS * STUCK_MOVE_EPS) {
+                if (++stuckTicks > STUCK_TICKS) {
+                    stuckTicks = 0;
+                    return Status.STUCK;
+                }
+            } else {
+                stuckTicks = 0;
+            }
+        } else {
+            stuckTicks = 0;
+        }
+        lastPosX = px;
+        lastPosZ = pz;
+        havePos = true;
+
+        return Status.FOLLOWING;
+    }
+
     private BlockPos groundLookaheadNode(LocalPlayer player) {
         BlockPos direct = path.get(Math.min(segIndex + 1, path.size() - 1));
         double dx = direct.getX() + 0.5 - player.getX();
@@ -204,6 +276,13 @@ public final class PathFollower {
         double dx = node.getX() + 0.5 - player.getX();
         double dz = node.getZ() + 0.5 - player.getZ();
         return dx * dx + dz * dz <= NODE_ADVANCE * NODE_ADVANCE
+                && reachedYLoose(node, player);
+    }
+
+    private boolean reachedStrict(BlockPos node, LocalPlayer player) {
+        double dx = node.getX() + 0.5 - player.getX();
+        double dz = node.getZ() + 0.5 - player.getZ();
+        return dx * dx + dz * dz <= 0.62 * 0.62
                 && reachedYLoose(node, player);
     }
 

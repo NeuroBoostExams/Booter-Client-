@@ -205,7 +205,7 @@ public final class ZealotEmanFarmerModule {
         }
 
         if (state == State.PATHING) {
-            PathFollower.Status status = follower.tick(client, false, false);
+            PathFollower.Status status = follower.tickStrict(client, false, false);
             if (status == PathFollower.Status.ARRIVED || status == PathFollower.Status.STUCK || status == PathFollower.Status.IDLE) {
                 if (status == PathFollower.Status.STUCK && target != null) {
                     failedTargets.put(target.getId(), FAILED_TARGET_BLACKLIST_TICKS);
@@ -267,6 +267,7 @@ public final class ZealotEmanFarmerModule {
         Pathfinder land = new Pathfinder(PATH_MAX_NODES, PATH_MAX_RADIUS, true);
         List<BlockPos> path = land.findLocalPath(client.level, player.blockPosition(), goal);
         if (path != null && path.size() >= 2) {
+            path = straightenPath(client, path);
             follower.setPath(path, player);
             lastPathGoal = goal;
             lastPathTargetId = target.getId();
@@ -434,6 +435,34 @@ public final class ZealotEmanFarmerModule {
         Vec3 eye = player.getEyePosition();
         Vec3 point = new Vec3(node.getX() + 0.5, node.getY() + player.getEyeHeight(), node.getZ() + 0.5);
         HitResult hit = client.level.clip(new ClipContext(eye, point, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        return hit.getType() == HitResult.Type.MISS;
+    }
+
+    private static List<BlockPos> straightenPath(Minecraft client, List<BlockPos> path) {
+        if (client.level == null || client.player == null || path.size() <= 2) {
+            return path;
+        }
+        ArrayList<BlockPos> out = new ArrayList<>();
+        int i = 0;
+        out.add(path.get(0));
+        while (i < path.size() - 1) {
+            int best = i + 1;
+            for (int j = path.size() - 1; j > i + 1; j--) {
+                if (hasLineBetweenNodes(client, path.get(i), path.get(j))) {
+                    best = j;
+                    break;
+                }
+            }
+            out.add(path.get(best));
+            i = best;
+        }
+        return out;
+    }
+
+    private static boolean hasLineBetweenNodes(Minecraft client, BlockPos a, BlockPos b) {
+        Vec3 from = new Vec3(a.getX() + 0.5, a.getY() + 1.0, a.getZ() + 0.5);
+        Vec3 to = new Vec3(b.getX() + 0.5, b.getY() + 1.0, b.getZ() + 0.5);
+        HitResult hit = client.level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
         return hit.getType() == HitResult.Type.MISS;
     }
 
