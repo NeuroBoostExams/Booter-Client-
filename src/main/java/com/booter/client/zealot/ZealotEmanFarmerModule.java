@@ -16,7 +16,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
@@ -40,6 +43,8 @@ public final class ZealotEmanFarmerModule {
     private static final double SCAN_RADIUS = 48.0;
     private static final double ATTACK_RANGE = 4.0;
     private static final double NODE_ELIGIBILITY_RADIUS = 4.5;
+    private static final double VISIBLE_NODE_LOOKAHEAD = 5.0;
+    private static final double MOB_AIM_LOS_RANGE = 5.0;
     private static final double APPROACH_DISTANCE = 2.2;
 
     private final ConfigManager config;
@@ -192,7 +197,7 @@ public final class ZealotEmanFarmerModule {
             beginPath(client, player);
         }
 
-        if (target != null && player.distanceToSqr(target) <= 8.0 * 8.0) {
+        if (target != null && canLookAtMob(player, target)) {
             aimAtTarget(player);
         }
     }
@@ -214,10 +219,13 @@ public final class ZealotEmanFarmerModule {
             state = State.SCANNING;
             return;
         }
-        BlockPos goal = approachPos(player, target);
-        for (BlockPos visible : visibleApproachGoals(client, target)) {
-            goal = visible;
-            break;
+        BlockPos goal = visibleNodeLookahead(client, player, target);
+        if (goal == null) {
+            goal = approachPos(player, target);
+            for (BlockPos visible : visibleApproachGoals(client, target)) {
+                goal = visible;
+                break;
+            }
         }
         Pathfinder land = new Pathfinder(PATH_MAX_NODES, PATH_MAX_RADIUS, true);
         List<BlockPos> path = land.findPath(client.level, player.blockPosition(), goal);
@@ -308,6 +316,46 @@ public final class ZealotEmanFarmerModule {
 
     private static boolean canAttack(LocalPlayer player, Entity entity) {
         return entity != null && player.distanceToSqr(entity) <= ATTACK_RANGE * ATTACK_RANGE && player.hasLineOfSight(entity);
+    }
+
+    private static boolean canLookAtMob(LocalPlayer player, Entity entity) {
+        return entity != null
+                && player.distanceToSqr(entity) <= MOB_AIM_LOS_RANGE * MOB_AIM_LOS_RANGE
+                && player.hasLineOfSight(entity);
+    }
+
+    private BlockPos visibleNodeLookahead(Minecraft client, LocalPlayer player, Entity mob) {
+        if (client.level == null || mob == null) {
+            return null;
+        }
+        Node best = null;
+        double bestPlayerSq = Double.MAX_VALUE;
+        double maxNodeSq = VISIBLE_NODE_LOOKAHEAD * VISIBLE_NODE_LOOKAHEAD;
+        for (Node node : nodes) {
+            if (node.distanceSqr(mob) > maxNodeSq) {
+                continue;
+            }
+            BlockPos pos = node.blockPos();
+            if (!BaritonePathfinder.isStandable(client.level, pos) || !hasLineToNode(client, player, pos)) {
+                continue;
+            }
+            double playerSq = pos.distSqr(player.blockPosition());
+            if (playerSq < bestPlayerSq) {
+                bestPlayerSq = playerSq;
+                best = node;
+            }
+        }
+        return best == null ? null : best.blockPos();
+    }
+
+    private static boolean hasLineToNode(Minecraft client, LocalPlayer player, BlockPos node) {
+        if (client.level == null) {
+            return false;
+        }
+        Vec3 eye = player.getEyePosition();
+        Vec3 point = new Vec3(node.getX() + 0.5, node.getY() + player.getEyeHeight(), node.getZ() + 0.5);
+        HitResult hit = client.level.clip(new ClipContext(eye, point, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        return hit.getType() == HitResult.Type.MISS;
     }
 
     private static List<BlockPos> visibleApproachGoals(Minecraft client, Entity mob) {
