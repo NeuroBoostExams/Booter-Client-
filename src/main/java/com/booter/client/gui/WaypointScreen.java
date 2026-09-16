@@ -67,7 +67,7 @@ public final class WaypointScreen extends Screen {
     private static final int SIDEBAR_W = 96;
 
     /** Sidebar sections. Add more here as new modules are introduced. */
-    private static final String[] SECTIONS = {"Route Walker", "Mushroom Macro", "Pathfinder", "Mushroom Farmer", "Block Miner", "Auto Fisher", "Fish Hunter", "Turtle Hunter", "Combat", "Coal Miner", "Auto Farmer", "Azalea Farmer", "Path Debug", "Dev Mode"};
+    private static final String[] SECTIONS = {"Route Walker", "Mushroom Macro", "Pathfinder", "Mushroom Farmer", "Block Miner", "Auto Fisher", "Fish Hunter", "Turtle Hunter", "Combat", "Coal Miner", "Auto Farmer", "Azalea Farmer", "Path Debug", "Dev Mode", "Movement Recorder"};
 
     /** Cycleable presets for the debug path-line colour (ARGB). */
     private static final int[] DEBUG_LINE_COLORS = {0xFF40C4FF, 0xFF2CFF6A, 0xFFFFE34D, 0xFFFF5BAA, 0xFFB76BFF, 0xFFFFFFFF};
@@ -161,7 +161,7 @@ public final class WaypointScreen extends Screen {
         tabX = panelX + 6;
         tabW = SIDEBAR_W - 12;
         tabH = 16;
-        tabGap = 19;
+        tabGap = Math.max(tabH, Math.min(19, (panelH - 44) / SECTIONS.length));
         tabY0 = panelY + 16 + 6;
 
         focusedField = null;
@@ -193,6 +193,8 @@ public final class WaypointScreen extends Screen {
             buildPathDebugSection();
         } else if (selectedSection == 13) {
             buildDevModeSection();
+        } else if (selectedSection == 14) {
+            buildMovementRecorderSection();
         }
         applyContentScroll();
     }
@@ -650,6 +652,35 @@ public final class WaypointScreen extends Screen {
         widgets.add(new Button(innerX, y, controlsW, 14, () -> "Show Routes Folder", false, this::showRoutesPath));
     }
 
+    private void buildMovementRecorderSection() {
+        int pad = 6;
+        int innerX = contentX + pad;
+        int controlsW = contentW - pad * 2;
+        int halfW = (controlsW - 3) / 2;
+        ConfigManager.Settings s = BooterClient.config().settings;
+
+        int y = panelY + 16 + 60;
+        widgets.add(new Button(innerX, y, halfW, 16,
+                () -> BooterClient.movementRecorder().isRecording() ? "Stop Recording" : "Start Recording",
+                false, () -> BooterClient.movementRecorder().toggle(mc())));
+        widgets.add(new Button(innerX + halfW + 3, y, halfW, 16, () -> "Add END Node", false,
+                () -> BooterClient.movementRecorder().addEndNode(mc())));
+        y += 21;
+        widgets.add(new Button(innerX, y, halfW, 14, () -> "Clear Recording", true,
+                () -> BooterClient.movementRecorder().clear()));
+        widgets.add(new Button(innerX + halfW + 3, y, halfW, 14, () -> "Save JSON", false,
+                () -> BooterClient.movementRecorder().save(BooterClient.config().settings.lastRecordingName)));
+        y += 18;
+        widgets.add(new Slider(innerX, y, controlsW, "Node Spacing", 0.25f, 5.0f,
+                () -> s.recorderNodeSpacing, v -> s.recorderNodeSpacing = v,
+                v -> String.format("%.2f", v)));
+        y += 21;
+        nameField = new TextField(innerX + 55, y, controlsW - 55, 12,
+                () -> BooterClient.config().settings.lastRecordingName,
+                v -> BooterClient.config().settings.lastRecordingName = v, 32, NAME_CHARS);
+        widgets.add(nameField);
+    }
+
     private void selectSection(int index) {
         if (index != selectedSection && index >= 0 && index < SECTIONS.length) {
             selectedSection = index;
@@ -940,6 +971,8 @@ public final class WaypointScreen extends Screen {
             renderPathDebug(g, mouseX, mouseY);
         } else if (selectedSection == 13) {
             renderDevMode(g, mouseX, mouseY);
+        } else if (selectedSection == 14) {
+            renderMovementRecorder(g, mouseX, mouseY);
         }
     }
 
@@ -1362,6 +1395,21 @@ public final class WaypointScreen extends Screen {
         }
         renderWidgetsScrolled(g, mouseX, mouseY);
         renderWaypointList(g, mouseX, mouseY);
+    }
+
+    private void renderMovementRecorder(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+        Font font = font();
+        var recorder = BooterClient.movementRecorder();
+        int statusColor = recorder.isRecording() ? COL_ACTIVE : COL_DIM;
+        g.text(font, "Status: " + (recorder.isRecording() ? "Recording ground movement" : "Idle"),
+                contentX + 6, panelY + 20, statusColor, false);
+        g.text(font, "Nodes: " + recorder.size() + " · END nodes: " + recorder.endNodeCount()
+                + " · Air ticks skipped: " + recorder.skippedAirTicks(), contentX + 6, panelY + 32, COL_TEXT, false);
+        g.text(font, "Only samples while you are on the ground.", contentX + 6, panelY + 44, COL_DIM, false);
+        if (nameField != null && inContentViewport(nameField.y)) {
+            g.text(font, "File:", nameField.x - 49, nameField.y + 2, COL_DIM, false);
+        }
+        renderWidgetsScrolled(g, mouseX, mouseY);
     }
 
     private void renderBlockMiner(GuiGraphicsExtractor g, int mouseX, int mouseY) {

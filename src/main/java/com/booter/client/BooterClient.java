@@ -15,6 +15,7 @@ import com.booter.client.navigation.NavigationWaypointManager;
 import com.booter.client.pathdebug.PathDebugOverlay;
 import com.booter.client.pathdebug.PathDebugRenderer;
 import com.booter.client.pathfinder.PathfinderModule;
+import com.booter.client.recorder.MovementRecorder;
 import com.booter.client.render.RouteRenderer;
 import com.booter.client.rotation.RotationManager;
 import com.booter.client.turtlehunter.TurtleHunterModule;
@@ -48,6 +49,7 @@ public final class BooterClient implements ClientModInitializer {
     private RotationManager rotation;
     private WaypointWalkerModule walker;
     private PathfinderModule pathfinder;
+    private MovementRecorder movementRecorder;
     private MushroomFarmerModule mushroomFarmer;
     private BlockMinerModule blockMiner;
     private AutoFisherModule autoFisher;
@@ -75,6 +77,7 @@ public final class BooterClient implements ClientModInitializer {
 
         movement = new MovementController();
         rotation = new RotationManager();
+        movementRecorder = new MovementRecorder(config);
         walker = new WaypointWalkerModule(config, waypoints, movement, rotation);
         pathfinder = new PathfinderModule(config, movement, rotation);
         mushroomFarmer = new MushroomFarmerModule(config, movement, rotation);
@@ -92,6 +95,7 @@ public final class BooterClient implements ClientModInitializer {
 
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
             keybinds.tick(client);
+            movementRecorder.tick(client);
             walker.tick(client);
             pathfinder.tick(client);
             mushroomFarmer.tick(client);
@@ -140,6 +144,10 @@ public final class BooterClient implements ClientModInitializer {
 
     public static PathfinderModule pathfinder() {
         return instance.pathfinder;
+    }
+
+    public static MovementRecorder movementRecorder() {
+        return instance.movementRecorder;
     }
 
     public static MushroomFarmerModule mushroomFarmer() {

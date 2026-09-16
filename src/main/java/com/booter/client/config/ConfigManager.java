@@ -42,6 +42,8 @@ public final class ConfigManager {
         public float waypointRadius = DEFAULT_RADIUS;
         public float removeDistance = 8.0f;
         public String lastRouteName = "route";
+        public String lastRecordingName = "movement_route";
+        public float recorderNodeSpacing = 0.75f;
 
         // Pathfinder
         public boolean pathfindWater = false;
@@ -196,6 +198,10 @@ public final class ConfigManager {
         settings.rotationMultiplier = Mth.clamp(settings.rotationMultiplier, MIN_ROTATION_MULTIPLIER, MAX_ROTATION_MULTIPLIER);
         settings.customPitch = Mth.clamp(settings.customPitch, MIN_PITCH, MAX_PITCH);
         settings.removeDistance = Mth.clamp(settings.removeDistance, 1.0f, 64.0f);
+        settings.recorderNodeSpacing = Mth.clamp(settings.recorderNodeSpacing, 0.25f, 5.0f);
+        if (settings.lastRecordingName == null || settings.lastRecordingName.isBlank()) {
+            settings.lastRecordingName = "movement_route";
+        }
         settings.mushroomLookSeconds = Mth.clamp(settings.mushroomLookSeconds, 0.5f, 10.0f);
         settings.mushroomScanRadius = Mth.clamp(settings.mushroomScanRadius, 4, 48);
         settings.fisherCatchTarget = Mth.clamp(settings.fisherCatchTarget, 1, 20);
