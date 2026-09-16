@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "booterclient",
+  "version": "${version}",
+  "name": "Booter Addons",
+  "description": "Client-side utility mod with waypoint tools and quick lobby swap keybinds.",
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.booter.client.BooterClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "fabric-api": "*",
+    "minecraft": "~26.1.2",
+    "java": ">=25"
+  }
+}

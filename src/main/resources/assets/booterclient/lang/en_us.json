@@ -1,0 +1,23 @@
+{
+  "category.booterclient.main": "Booter Addons",
+  "key.booterclient.add_waypoint": "Add Waypoint",
+  "key.booterclient.remove_nearest_waypoint": "Remove Nearest Waypoint",
+  "key.booterclient.clear_waypoints": "Clear All Waypoints",
+  "key.booterclient.toggle_walker": "Toggle Waypoint Walker",
+  "key.booterclient.set_target": "Set Pathfinder Target (Looked-at Block)",
+  "key.booterclient.pathfind_target": "Pathfind to Target",
+  "key.booterclient.water_pathfind_target": "Water Pathfind to Target",
+  "key.booterclient.toggle_mushroom_farmer": "Toggle Mushroom Farmer",
+  "key.booterclient.toggle_block_miner": "Toggle Block Miner",
+  "key.booterclient.toggle_auto_fisher": "Toggle Auto Fisher",
+  "key.booterclient.toggle_fish_hunter": "Toggle Fish Hunter",
+  "key.booterclient.toggle_turtle_hunter": "Toggle Turtle Hunter",
+  "key.booterclient.toggle_combat": "Toggle Combat",
+  "key.booterclient.toggle_azalea_farmer": "Toggle Flowering Azalea Farmer",
+  "key.booterclient.toggle_coal_miner": "Toggle Coal Miner",
+  "key.booterclient.toggle_auto_farmer": "Toggle Auto Farmer",
+  "key.booterclient.swap_to_hub": "Lobby Swap: /hub",
+  "key.booterclient.swap_to_galatea": "Lobby Swap: /warp galatea",
+  "key.booterclient.toggle_path_debug": "Toggle A* Search Visualizer",
+  "key.booterclient.open_gui": "Open Click GUI"
+}

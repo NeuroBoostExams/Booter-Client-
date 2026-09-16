@@ -1,0 +1,40 @@
+{
+  "waypoints": [
+    {
+      "id": "example_spawn",
+      "x": 0,
+      "y": 64,
+      "z": 0,
+      "region": "example",
+      "type": "normal",
+      "metadata": {}
+    },
+    {
+      "id": "example_farm",
+      "x": 16,
+      "y": 64,
+      "z": 0,
+      "region": "example",
+      "type": "normal",
+      "metadata": {}
+    }
+  ],
+  "edges": [
+    {
+      "from": "example_spawn",
+      "to": "example_farm",
+      "cost": 16.0,
+      "bidirectional": true,
+      "metadata": {}
+    }
+  ],
+  "movementCosts": {
+    "walk": 1.0,
+    "sprint": 0.8,
+    "jump": 2.0,
+    "climb": 3.0,
+    "difficult": 5.0,
+    "dangerous": 100.0,
+    "impossible": 1000000000.0
+  }
+}
