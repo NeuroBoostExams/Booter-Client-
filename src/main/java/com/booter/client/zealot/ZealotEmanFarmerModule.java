@@ -26,6 +26,7 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,16 +37,18 @@ public final class ZealotEmanFarmerModule {
     }
 
     private static final String RESOURCE = "/booterclient/zealot/macrodetector_waypoint_profiles.json";
-    private static final int SCAN_INTERVAL = 2;
-    private static final int REPATH_INTERVAL = 15;
-    private static final int PATH_MAX_NODES = 12000;
-    private static final int PATH_MAX_RADIUS = 224;
+    private static final int SCAN_INTERVAL = 5;
+    private static final int REPATH_INTERVAL = 45;
+    private static final int FAILED_TARGET_BLACKLIST_TICKS = 80;
+    private static final int PATH_MAX_NODES = 4000;
+    private static final int PATH_MAX_RADIUS = 96;
     private static final double SCAN_RADIUS = 48.0;
     private static final double ATTACK_RANGE = 4.0;
     private static final double NODE_ELIGIBILITY_RADIUS = 4.5;
     private static final double VISIBLE_NODE_LOOKAHEAD = 5.0;
     private static final double MOB_AIM_LOS_RANGE = 5.0;
     private static final double APPROACH_DISTANCE = 2.2;
+    private static final double PATH_GOAL_REACHED = 1.65;
 
     private final ConfigManager config;
     private final MovementController movement;
@@ -59,6 +62,9 @@ public final class ZealotEmanFarmerModule {
     private int scanCooldown;
     private int repathCooldown;
     private boolean loaded;
+    private BlockPos lastPathGoal;
+    private int lastPathTargetId = -1;
+    private final Map<Integer, Integer> failedTargets = new HashMap<>();
 
     public ZealotEmanFarmerModule(ConfigManager config, MovementController movement, RotationManager rotation) {
         this.config = config;
@@ -118,6 +124,9 @@ public final class ZealotEmanFarmerModule {
         targetNode = null;
         scanCooldown = 0;
         repathCooldown = 0;
+        lastPathGoal = null;
+        lastPathTargetId = -1;
+        failedTargets.clear();
         follower.clear();
         state = State.SCANNING;
         BooterClient.chat("Zealot Eman Farmer started with " + nodes.size() + " node(s).");
@@ -132,6 +141,8 @@ public final class ZealotEmanFarmerModule {
         follower.clear();
         target = null;
         targetNode = null;
+        lastPathGoal = null;
+        lastPathTargetId = -1;
         state = State.IDLE;
         BooterClient.chat("Zealot Eman Farmer stopped.");
     }
@@ -153,12 +164,15 @@ public final class ZealotEmanFarmerModule {
             stop(client);
             return;
         }
+        tickFailedTargets();
 
         if (!validTarget(target) || !eligible(target)) {
             target = null;
             targetNode = null;
             movement.setAttack(client, false);
             follower.clear();
+            lastPathGoal = null;
+            lastPathTargetId = -1;
             state = State.SCANNING;
             scanCooldown = 0;
         }
@@ -180,6 +194,10 @@ public final class ZealotEmanFarmerModule {
             attackTarget(client, player);
             return;
         }
+        if (canLookAtMob(player, target)) {
+            chaseVisibleTarget(client, player);
+            return;
+        }
 
         movement.setAttack(client, false);
         if (state == State.ATTACKING || repathCooldown-- <= 0) {
@@ -191,6 +209,16 @@ public final class ZealotEmanFarmerModule {
         if (state == State.PATHING) {
             PathFollower.Status status = follower.tick(client, false, false);
             if (status == PathFollower.Status.ARRIVED || status == PathFollower.Status.STUCK || status == PathFollower.Status.IDLE) {
+                if (status == PathFollower.Status.STUCK && target != null) {
+                    failedTargets.put(target.getId(), FAILED_TARGET_BLACKLIST_TICKS);
+                    target = null;
+                    targetNode = null;
+                    lastPathGoal = null;
+                    lastPathTargetId = -1;
+                    state = State.SCANNING;
+                    scanCooldown = 0;
+                    return;
+                }
                 beginPath(client, player);
             }
         } else {
@@ -205,6 +233,7 @@ public final class ZealotEmanFarmerModule {
     private Entity findTarget(Minecraft client, LocalPlayer player) {
         AABB box = player.getBoundingBox().inflate(SCAN_RADIUS);
         return client.level.getEntities(player, box, this::validTarget).stream()
+                .filter(e -> !failedTargets.containsKey(e.getId()))
                 .filter(this::eligible)
                 .min(Comparator
                         .comparingDouble((Entity e) -> nearestNodeDistanceSqr(e))
@@ -216,6 +245,8 @@ public final class ZealotEmanFarmerModule {
         if (!validTarget(target) || !eligible(target)) {
             target = null;
             targetNode = null;
+            lastPathGoal = null;
+            lastPathTargetId = -1;
             state = State.SCANNING;
             return;
         }
@@ -227,12 +258,27 @@ public final class ZealotEmanFarmerModule {
                 break;
             }
         }
+        if (player.blockPosition().distSqr(goal) <= PATH_GOAL_REACHED * PATH_GOAL_REACHED) {
+            chaseVisibleTarget(client, player);
+            return;
+        }
+        if (target.getId() == lastPathTargetId && goal.equals(lastPathGoal) && follower.isFollowing()) {
+            state = State.PATHING;
+            return;
+        }
         Pathfinder land = new Pathfinder(PATH_MAX_NODES, PATH_MAX_RADIUS, true);
-        List<BlockPos> path = land.findPath(client.level, player.blockPosition(), goal);
+        List<BlockPos> path = land.findLocalPath(client.level, player.blockPosition(), goal);
         if (path != null && path.size() >= 2) {
             follower.setPath(path, player);
+            lastPathGoal = goal;
+            lastPathTargetId = target.getId();
             state = State.PATHING;
         } else {
+            failedTargets.put(target.getId(), FAILED_TARGET_BLACKLIST_TICKS);
+            target = null;
+            targetNode = null;
+            lastPathGoal = null;
+            lastPathTargetId = -1;
             state = State.SCANNING;
             scanCooldown = SCAN_INTERVAL;
         }
@@ -248,6 +294,20 @@ public final class ZealotEmanFarmerModule {
         aimAtTarget(player);
         movement.setUse(client, false);
         movement.setAttack(client, true);
+    }
+
+    private void chaseVisibleTarget(Minecraft client, LocalPlayer player) {
+        follower.clear();
+        lastPathGoal = null;
+        lastPathTargetId = -1;
+        state = State.PATHING;
+        double dx = target.getX() - player.getX();
+        double dz = target.getZ() - player.getZ();
+        double horiz = Math.sqrt(dx * dx + dz * dz);
+        aimAtTarget(player);
+        movement.tick(client, horiz > 2.15, false, false, false, true);
+        movement.setAttack(client, false);
+        movement.setUse(client, false);
     }
 
     private void aimAtTarget(LocalPlayer player) {
@@ -297,6 +357,13 @@ public final class ZealotEmanFarmerModule {
     private double nearestNodeDistanceSqr(Entity entity) {
         Node nearest = nearestNode(entity);
         return nearest == null ? Double.MAX_VALUE : nearest.distanceSqr(entity);
+    }
+
+    private void tickFailedTargets() {
+        if (failedTargets.isEmpty()) {
+            return;
+        }
+        failedTargets.entrySet().removeIf(entry -> entry.setValue(entry.getValue() - 1) <= 0);
     }
 
     private static BlockPos approachPos(LocalPlayer player, Entity mob) {
